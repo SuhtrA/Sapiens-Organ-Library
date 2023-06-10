@@ -19,6 +19,10 @@ KSP script has been developped on Sublim Text editor thanks to Nils Liberg's scr
 
 Design was made on Adobe Illustrator and WebKnobMan website ( https://www.g200kg.com/en/webknobman/ )
 
+Microtuning code comes from Kontakt 4 Factory Library - Microtuning
+									\\ Author : Native Instruments
+									\\ Written by: Josef Natterer, Nicki Marinic
+
 ![Capture](https://github.com/SuhtrA/Sapiens-Organ-Library/assets/106975406/a9e6c2fa-1cdc-4daa-9379-f5d2b979c997)
 
 
