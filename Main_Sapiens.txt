@@ -1,0 +1,1250 @@
+{***********************************************
+SapienS Organ Main view
+Author: Sapiens Organ development team from Master Acoustique Musicologie - AMU
+Written by: Arthus Touzet
+Modified: April 7, 2022
+*************************************************}
+
+on init
+
+		set_script_title("SapienS Instrument")
+		make_perfview
+		load_performance_view("Perfview_Sapiens") {Creator Tool performance view}
+		declare $count 
+
+		
+	declare $groupstatus :=0
+	
+	$count := 24
+    while ($count < 48)
+	set_key_color($count,$KEY_COLOR_PURPLE)
+        inc($count)
+    end while
+    
+    while ($count < 109)
+    	set_key_color($count,$KEY_COLOR_TURQUOISE)
+            inc($count)
+        end while
+{Init the voices view}
+		set_control_par(get_ui_id($Add), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+		set_control_par(get_ui_id($IO), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+		$voice :=1 {init voice view}
+		make_persistent($IO_1_1)
+		make_persistent($IO_1_2)
+		make_persistent($IO_1_3)
+		make_persistent($IO_2_1)
+		make_persistent($IO_2_2)
+		make_persistent($IO_2_3)
+		make_persistent($IO_2_4)
+		make_persistent($IO_3_1)
+		make_persistent($IO_3_2)
+		make_persistent($IO_3_3)
+		make_persistent($IO_3_4)
+		make_persistent($IO_3_5)
+		make_persistent($IO_4_1)
+		make_persistent($IO_4_2)
+		make_persistent($IO_4_3)
+		make_persistent($IO_4_4)
+
+		make_persistent($Add_1_1)
+		make_persistent($Add_1_2)
+		make_persistent($Add_1_3)
+		make_persistent($Add_2_1)
+		make_persistent($Add_2_2)
+		make_persistent($Add_2_3)
+		make_persistent($Add_2_4)
+		make_persistent($Add_3_1)
+		make_persistent($Add_3_2)
+		make_persistent($Add_3_3)
+		make_persistent($Add_3_4)
+		make_persistent($Add_3_5)
+		make_persistent($Add_4_1)
+		make_persistent($Add_4_2)
+		make_persistent($Add_4_3)
+		make_persistent($Add_4_4)
+
+{Init the verb IR on Null}
+		$rev_1 := 0
+		$rev_2 := 0
+		$rev_3 := 0
+		$rev_4 := 0
+		$rev_5 := 0
+		
+		$rev_IMG := 6
+		$rev_wet := 3109000
+		$rev_dry := 3109000
+		set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,0,-1,0,$NI_INSERT_BUS)	
+		set_engine_par($ENGINE_PAR_SEND_EFFECT_DRY_LEVEL,3109000,-1,0,$NI_INSERT_BUS)
+		set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+		declare $IMG
+
+{Init ADSR Values}
+		make_persistent($ADSR_IO)
+		$ADSR_a := get_engine_par($ENGINE_PAR_ATTACK,0,find_mod(0, "env"), -1)
+		$ADSR_d := get_engine_par($ENGINE_PAR_DECAY,0,find_mod(0, "env"), -1)
+		$ADSR_s := get_engine_par($ENGINE_PAR_SUSTAIN,0,find_mod(0, "env"), -1)
+		$ADSR_r := get_engine_par($ENGINE_PAR_RELEASE,0,find_mod(0, "env"), -1)
+
+{Microtuning init :	from Kontakt 4 Factory Library - Microtuning
+									Author : Native Instruments
+									Written by: Josef Natterer, Nicki Marinic
+									Modified by Sapiens Organ developers in april 2022}
+
+
+
+		declare const $ECO_MODE := 0
+		declare const $TUNE_RANGE := 50
+
+		declare !note_class[12]
+		!note_class[0] := "C"
+		!note_class[1] := "Db"
+		!note_class[2] := "D"
+		!note_class[3] := "Eb"
+		!note_class[4] := "E"
+		!note_class[5] := "F"
+		!note_class[6] := "Gb"
+		!note_class[7] := "G"
+		!note_class[8] := "Ab"
+		!note_class[9] := "A"
+		!note_class[10] := "Bb"
+		!note_class[11] := "B"
+		declare !note_names [128]
+		$count := 0
+		while ($count < 128)
+			!note_names[$count] := !note_class[$count mod 12] & (($count/12)-2)
+			inc ($count)
+		end while
+
+		declare $a
+		declare $b
+		declare %preset_store[12*14]
+		make_persistent(%preset_store)
+		declare %tune_factory[12*12]:= (...
+		0,-29,  4, 16,-14, -2,-31,  2, 14,-16, 18,-12, {Pure } ...
+		0,  5,  4, -2,-14,-29,-49,  2, 41,  6,-31,-12, {Overtone 16-32}...
+		0, 14,  4, -5,  8, -2, 12,  2, 16,  6,  4, 10, {Pythagorean }...
+		0,-10,  4, -6,  8, -2,  0,  2, -8,  6, -4, 10, {Pythagorean Middle}...
+		0, 14,  4, 18,  8, 22, 12,  2, 16,  6, 20, 10, {Pythagorean Up}...
+		0,-24, -7, 10, -14,  3,-21, -3,-27,-10,  7,-17, {Mean Tone 1/4}...
+		0, -16,  4,  15, -14,  -2, -17, 2,  14, -16,  -31, -12, {7-Limit Harmonic Dominant }...
+		0, 12, 4, 15, -14, -2,31, 2, 14, -16, 17, -12, {5-Limit Minor 7th}...
+		0,-8, 4, -6,-14, -2,10, 2, 14,-16, -4,-12, {5-Limit Sus4 7th}...
+		0, -16, 4, 15, -14, -2, -49, 2, 41, -16, -31, -12, {13-Limit Dominent}...
+		0, -6, -4, -2, -8,  2, -8, -2, -4, -6,  0,-10, {Valotti } ...
+		0,-10, -4, -6, -8, -2,-12, -2, -8, -6, -4, -8) {Young 1 / 6 pC }
+		
+		declare %helper_tune[12]
+		make_persistent(%helper_tune)
+
+
+		make_persistent($mutune_key_knob)
+		
+		declare !key_label[12]
+		!key_label[0] := "   C    "
+		!key_label[1] := "   Db    "
+		!key_label[2] := "   D    "
+		!key_label[3] := "   Eb    "
+		!key_label[4] := "   E     "
+		!key_label[5] := "   F    "
+		!key_label[6] := "   Gb    "
+		!key_label[7] := "   G    "
+		!key_label[8] := "   Ab    "
+		!key_label[9] := "   A    "
+		!key_label[10] := "   Bb    "
+		!key_label[11] := "   B    "
+		_read_persistent_var($mutune_key_knob)
+		set_text ($mutune_label,!key_label[(0+$mutune_key_knob) mod 12]&""&...
+		!key_label[(1+$mutune_key_knob) mod 12]&""&...
+		!key_label[(2+$mutune_key_knob) mod 12]&""&...
+		!key_label[(3+$mutune_key_knob) mod 12]&""&...
+		!key_label[(4+$mutune_key_knob) mod 12]&""&...
+		!key_label[(5+$mutune_key_knob) mod 12]&""&...
+		!key_label[(6+$mutune_key_knob) mod 12]&""&...
+		!key_label[(7+$mutune_key_knob) mod 12]&""&...
+		!key_label[(8+$mutune_key_knob) mod 12]&""&...
+		!key_label[(9+$mutune_key_knob) mod 12]&""&...
+		!key_label[(10+$mutune_key_knob) mod 12]&""&...
+		!key_label[(11+$mutune_key_knob) mod 12])
+		{set_slider_label($mutune_key_knob,!key_label[(0+$mutune_key_knob) mod 12])
+		set_text($mutune_key_knob,"Key")}
+		
+		make_persistent (%mutune_table)
+		
+		
+		make_persistent ($mutune_preset)
+		
+		add_menu_item($mutune_preset_menu,"Edit ...",100)
+		add_menu_item($mutune_preset_menu,"--------",99)
+		add_menu_item($mutune_preset_menu,"Copy Tuning",0)
+		add_menu_item($mutune_preset_menu,"Paste Tuning",1)
+		add_menu_item($mutune_preset_menu,"Clear Tuning",2)  
+		add_menu_item($mutune_preset_menu,"----",99)
+		add_menu_item($mutune_preset_menu,"Copy curr. Tuning to all Presets",3)
+		add_menu_item($mutune_preset_menu,"-------------",99)
+		add_menu_item($mutune_preset_menu,"Pure",4)
+		add_menu_item($mutune_preset_menu,"Overtone 16-32",5)
+		add_menu_item($mutune_preset_menu,"Pythagorean",6)
+		add_menu_item($mutune_preset_menu,"Pythagorean Middle",7)
+		add_menu_item($mutune_preset_menu,"Pythagorean Up",8)
+		add_menu_item($mutune_preset_menu,"Mean Tone 1/4",9)
+		add_menu_item($mutune_preset_menu,"7-Limit Harmonic Dominant ",10)
+		add_menu_item($mutune_preset_menu,"5-Limit Minor 7th",11)
+		add_menu_item($mutune_preset_menu,"5-Limit Sus4 7th",12)
+		add_menu_item($mutune_preset_menu,"13-Limit Dominent",13)
+		add_menu_item($mutune_preset_menu,"Valotti",14)
+		add_menu_item($mutune_preset_menu,"Young 1/6 pC",15)
+		set_control_help ($mutune_preset_menu,"Edit Menu: Choose edit commands and/or factory preset tunings.")
+		
+		$mutune_amount := 0
+		
+		make_persistent($mutune_amount)
+		declare $helper_tune
+		set_control_help ($mutune_amount,"Amount: Adjusts the amount of the tuning. When set to 100%, each note is tuned to the cent value specified with the table. When set to 0%, no tuning is applied.") 
+
+{Microtuning Fast access init}
+		make_persistent($mutune_fast_IO)
+		make_persistent($mutune_fast_preset)
+		make_persistent($mutune_fast_key_knob)
+		$mutune_fast_Settings := 0
+		set_control_par(get_ui_id($mutune), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+		set_control_par(get_ui_id($ADSR), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+
+end on	
+
+{***************** ui_control functions  *****************}
+{all ui_controls have been imported and organised thanks to the performance view build with Creator Tools NI software. }
+
+{On note callback}
+	on note
+
+
+
+
+	disallow_group($ALL_GROUPS)
+
+	$count :=0
+	while($count<$NUM_GROUPS)
+		$groupstatus := get_engine_par($ENGINE_PAR_VOLUME, $count, -1, -1)
+		if($groupstatus #0 )
+			allow_group($count)
+			else 
+			disallow_group($count)
+
+		end if
+		inc($count)
+	end while
+
+	{if($IO_1_1#0)
+			allow_group(0)
+		end if
+		if($IO_1_2#0)
+			allow_group(1)
+		end if
+		if($IO_1_3#0)
+			allow_group(2)
+		end if
+		if($IO_2_1#0)
+			allow_group(3)
+		end if
+		if($IO_2_2#0)
+			allow_group(4)
+		end if
+		if($IO_2_3#0)
+			allow_group(5)
+		end if
+		if($IO_2_4#0)
+			allow_group(6)
+		end if
+		if($IO_3_1#0)
+			allow_group(7)
+		end if
+		if($IO_3_2#0)
+			allow_group(8)
+		end if
+		if($IO_1_1#0)
+			allow_group(0)
+		end if
+		if($IO_1_2#0)
+			allow_group(1)
+		end if
+		if($IO_1_3#0)
+			allow_group(2)
+		end if}
+
+
+
+		if ($ECO_MODE = 1)
+			$helper_tune := (%mutune_table[($EVENT_NOTE + 12 - $mutune_key_knob) mod 12]*1000*$mutune_amount)/100
+			change_tune($EVENT_ID,$helper_tune,0)
+		else
+			while($NOTE_HELD= 1)
+				$helper_tune := (%mutune_table[($EVENT_NOTE + 12 - $mutune_key_knob) mod 12]*1000*$mutune_amount)/100
+				change_tune($EVENT_ID,$helper_tune,0)
+				wait(15000)
+			end while
+		end if
+	
+	end on
+
+{Microtuning Settings control (from Kontakt 4 Factory library too)}
+	on ui_control(%mutune_table)
+		$a := 0
+		while($a < 12)
+			%preset_store[($mutune_preset)*12+$a] := %mutune_table[$a]
+			inc($a)
+		end while
+	end on
+
+	on ui_control ($mutune_preset_menu)
+		if ($mutune_preset_menu < 99)
+			select($mutune_preset_menu)
+				case 0
+					$a := 0
+					while($a < 12)
+						%helper_tune[$a] := %mutune_table[$a]
+						inc($a)
+					end while
+				case 1
+					$a := 0
+					while($a < 12)
+						%mutune_table[$a] := %helper_tune[$a]
+						%preset_store[($mutune_preset)*12+$a] := %mutune_table[$a]
+						inc($a)
+					end while
+				case 2
+					$a := 0
+					while($a < 12)
+						%mutune_table[$a] := 0
+						%preset_store[($mutune_preset)*12+$a] := 0
+						inc($a)
+					end while
+				case 3
+					$b := 0
+					while($b < 12)
+						$a := 0
+						while($a < 12)
+							%preset_store[$b*12+$a] := %mutune_table[$a]
+							inc($a)
+						end while
+						inc($b)
+					end while
+				case 4 to 15
+					$a := 0
+					while($a < 12)
+						%mutune_table[$a] := %tune_factory[($mutune_preset_menu-4)*12 + $a]
+						%preset_store[($mutune_preset)*12+$a] := %mutune_table[$a]		
+						inc($a)
+					end while
+					set_text($mutune_fast_label_preset, get_menu_item_str(get_ui_id($mutune_preset_menu),$mutune_preset_menu+4))
+					$mutune_preset := $mutune_preset_menu - 4
+			end select
+
+		end if
+		$mutune_preset_menu := 100
+	end on
+
+	on ui_control ($mutune_preset)
+		$a := 0
+		while($a < 12)
+			%mutune_table[$a] := %tune_factory[($mutune_preset)*12 + $a]
+			inc($a)
+		end while
+		set_text($mutune_fast_label_preset, get_menu_item_str(get_ui_id($mutune_preset_menu),$mutune_fast_preset +8 ))
+		$mutune_fast_preset := $mutune_preset
+	end on
+
+	on ui_control ($mutune_key_knob)
+		set_text ($mutune_label,!key_label[(0+$mutune_key_knob) mod 12]&""&...
+		!key_label[(1+$mutune_key_knob) mod 12]&""&...
+		!key_label[(2+$mutune_key_knob) mod 12]&""&...
+		!key_label[(3+$mutune_key_knob) mod 12]&""&...
+		!key_label[(4+$mutune_key_knob) mod 12]&""&...
+		!key_label[(5+$mutune_key_knob) mod 12]&""&...
+		!key_label[(6+$mutune_key_knob) mod 12]&""&...
+		!key_label[(7+$mutune_key_knob) mod 12]&""&...
+		!key_label[(8+$mutune_key_knob) mod 12]&""&...
+		!key_label[(9+$mutune_key_knob) mod 12]&""&...
+		!key_label[(10+$mutune_key_knob) mod 12]&""&...
+		!key_label[(11+$mutune_key_knob) mod 12])
+		{set_knob_label($mutune_key_knob,!key_label[(0+$mutune_key_knob) mod 12])}
+
+		$mutune_fast_key_knob := $mutune_key_knob
+	end on
+
+	on ui_control ($mutune_amount)
+		if($mutune_amount > 0)
+			$mutune_fast_IO := 1
+		else 
+			$mutune_fast_IO := 0
+		end if
+	end on
+
+{Microtuning Fast Access Controls}
+
+	on ui_control($mutune_fast_Settings)
+		if($mutune_fast_Settings = 1)
+			set_control_par(get_ui_id($ADSR), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+			set_control_par(get_ui_id($mutune), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+			
+			else
+			set_control_par(get_ui_id($ADSR), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+			set_control_par(get_ui_id($mutune), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+		end if
+	end on
+
+	on ui_control($mutune_fast_IO)
+		if($mutune_fast_IO = 0)
+			$mutune_amount := 0
+		else
+			$mutune_amount := 100
+		
+		end if
+	end on
+
+	on ui_control($mutune_fast_key_knob)
+		set_text ($mutune_label,!key_label[(0+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(1+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(2+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(3+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(4+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(5+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(6+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(7+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(8+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(9+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(10+$mutune_fast_key_knob) mod 12]&""&...
+		!key_label[(11+$mutune_fast_key_knob) mod 12])
+		{set_knob_label($mutune_key_knob,!key_label[(0+$mutune_key_knob) mod 12])}
+		$mutune_key_knob := $mutune_fast_key_knob
+		set_text($mutune_fast_label_key,!key_label[(0+$mutune_fast_key_knob) mod 12])
+
+	end on
+
+	on ui_control($mutune_fast_preset)
+		$a := 0
+		while($a < 12)
+			%mutune_table[$a] := %tune_factory[($mutune_preset)*12 + $a]
+			inc($a)
+		end while
+		$mutune_preset := $mutune_fast_preset
+		set_text($mutune_fast_label_preset, get_menu_item_str(get_ui_id($mutune_preset_menu),$mutune_fast_preset + 8))
+
+	end on
+
+{Voice ui_control}
+
+	{display the I/O Voice mode of the knob mode od the organ}
+
+		on ui_control($voice)
+			if($voice = 1)
+				set_control_par(get_ui_id($Add), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				set_control_par(get_ui_id($IO), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				
+			else
+				set_control_par(get_ui_id($Add), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				set_control_par(get_ui_id($IO), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+
+			end if
+		end on
+
+	{Control the volume of each Organ voices}
+		{line_1}
+			on ui_control($Add_1_1)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_1_1 ,0,-1,-1)
+						
+						if($Add_1_1=0)
+							$IO_1_1 :=0
+						else
+							$IO_1_1 := 1
+						end if  
+					end on
+			on ui_control($Add_1_2)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_1_2 ,1,-1,-1)
+						if($Add_1_2=0)
+							$IO_1_2 :=0
+						else
+							$IO_1_2 := 1
+						end if  
+					end on
+			on ui_control($Add_1_3)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_1_3 ,2,-1,-1)
+						if($Add_1_3=0)
+							$IO_1_3 :=0
+						else
+							$IO_1_3 := 1
+						end if  
+					end on
+		{line_2}
+			on ui_control($Add_2_1)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_2_1 ,3,-1,-1)
+						if($Add_2_1=0)
+							$IO_2_1 :=0
+						else
+							$IO_2_1 := 1
+						end if  
+					end on
+			on ui_control($Add_2_2)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_2_2 ,4,-1,-1)
+						if($Add_2_2=0)
+							$IO_2_2 :=0
+						else
+							$IO_2_2 := 1
+						end if  
+					end on
+			on ui_control($Add_2_3)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_2_3 ,5,-1,-1)
+						if($Add_2_3=0)
+							$IO_2_3 :=0
+						else
+							$IO_2_3 := 1
+						end if  
+					end on
+			on ui_control($Add_2_4)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_2_4 ,6,-1,-1)
+						if($Add_2_4=0)
+							$IO_2_4 :=0
+						else
+							$IO_2_4 := 1
+						end if  
+					end on
+		{line_3}
+			on ui_control($Add_3_1)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_3_1 ,7,-1,-1)
+						if($Add_3_1=0)
+							$IO_3_1 :=0
+						else
+							$IO_3_1 := 1
+						end if  
+					end on
+			on ui_control($Add_3_2)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_3_2 ,8,-1,-1)
+						if($Add_3_2=0)
+							$IO_3_2 :=0
+						else
+							$IO_3_2 := 1
+						end if  
+					end on
+			on ui_control($Add_3_3)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_3_3 ,9,-1,-1)
+						if($Add_3_3=0)
+							$IO_3_3 :=0
+						else
+							$IO_3_3 := 1
+						end if  
+					end on
+			on ui_control($Add_3_4)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_3_4 ,10,-1,-1)
+						if($Add_3_4=0)
+							$IO_3_4 :=0
+						else
+							$IO_3_4 := 1
+						end if  
+					end on
+			on ui_control($Add_3_5)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_3_5 ,11,-1,-1)
+						if($Add_3_5=0)
+							$IO_3_5 :=0
+						else
+							$IO_3_5 := 1
+						end if  
+					end on
+		{line_4}
+			on ui_control($Add_4_1)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_4_1 ,12,-1,-1)
+						if($Add_4_1=0)
+							$IO_4_1 :=0
+						else
+							$IO_4_1 := 1
+						end if  
+					end on
+			on ui_control($Add_4_2)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_4_2 ,13,-1,-1)
+						if($Add_4_2=0)
+							$IO_4_2 :=0
+						else
+							$IO_4_2 := 1
+						end if  
+					end on
+			on ui_control($Add_4_3)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_4_3 ,14,-1,-1)
+						if($Add_4_3=0)
+							$IO_4_3 :=0
+						else
+							$IO_4_3 := 1
+						end if  
+					end on
+			on ui_control($Add_4_4)
+						set_engine_par($ENGINE_PAR_VOLUME,$Add_4_4 ,15,-1,-1)
+						if($Add_4_4=0)
+							$IO_4_4 :=0
+						else
+							$IO_4_4 := 1
+						end if  
+					end on
+
+	{Gets On/Off the Gain of a Voice}
+
+		on ui_control($IO_1_litho)
+			if($IO_1_litho=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0, 16, -1, -1)
+			else
+				set_engine_par($ENGINE_PAR_VOLUME, 630000, 16, -1, -1)
+				$count := 72
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count := 72
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+			end if
+		end on
+	{line_1}
+		on ui_control($IO_1_1)
+			if($IO_1_1=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0, 0, -1, -1)
+			$Add_1_1 := 0
+			else
+				set_engine_par($ENGINE_PAR_VOLUME, 630000, 0, -1, -1)
+				$Add_1_1 :=630000
+				$count := 24
+						    while ($count < 56)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count := 24
+						    while ($count < 48)
+						    set_key_color($count,$KEY_COLOR_PURPLE)
+						    inc($count)
+						    end while
+						     while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+			end if
+
+			
+		end on
+		on ui_control($IO_1_2)
+			if($IO_1_2=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0, 1, -1, -1)
+			$Add_1_2 := 0
+			else
+				set_engine_par($ENGINE_PAR_VOLUME, 630000, 1, -1, -1)
+				$Add_1_2 :=630000
+				$count := 48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count := 48
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+			end if
+		end on
+		on ui_control($IO_1_3)
+			if($IO_1_3=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0, 2, -1, -1)
+			$Add_1_3 := 0
+			else
+				set_engine_par($ENGINE_PAR_VOLUME, 630000, 2, -1, -1)
+				$Add_1_3 :=630000
+				$count := 24
+						    while ($count < 56)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count := 24
+						    while ($count < 48)
+						    set_key_color($count,$KEY_COLOR_PURPLE)
+						    inc($count)
+						    end while
+						     while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+			end if
+		end on
+	{line_2}
+			on ui_control($IO_2_1)
+				if($IO_2_1=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,3,-1,-1)
+				$Add_2_1 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 3, -1, -1)
+					$Add_2_1 :=630000
+					$count := 48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count := 48
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_2_2)
+				if($IO_2_2=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,4,-1,-1)
+				$Add_2_2 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 4, -1, -1)
+					$Add_2_2 :=630000
+					$count := 48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count := 48
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_2_3)
+				if($IO_2_3=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,5,-1,-1)
+				$Add_2_3 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 5, -1, -1)
+					$Add_2_3 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_2_4)
+				if($IO_2_4=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,6,-1,-1)
+				$Add_2_4 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 6, -1, -1)
+					$Add_2_4 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+	{line_3}
+			on ui_control($IO_3_1)
+				if($IO_3_1=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,7,-1,-1)
+				$Add_3_1 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 7, -1, -1)
+					$Add_3_1 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_3_2)
+				if($IO_3_2=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,8,-1,-1)
+				$Add_3_2 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 8, -1, -1)
+					$Add_3_2 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_3_3)
+				if($IO_3_3=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,9,-1,-1)
+				$Add_3_3 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 9, -1, -1)
+					$Add_3_3 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_3_4)
+				if($IO_3_4=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,10,-1,-1)
+				$Add_3_4 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 10, -1, -1)
+					$Add_3_4 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_3_5)
+				if($IO_3_5=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,11,-1,-1)
+				$Add_3_5 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 11, -1, -1)
+					$Add_3_5 :=630000
+					$count := 60
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+	{line_4}
+			on ui_control($IO_4_1)
+				if($IO_4_1=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,12,-1,-1)
+				$Add_4_1 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 12, -1, -1)
+					$Add_4_1 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_4_2)
+				if($IO_4_2=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,13,-1,-1)
+				$Add_4_2 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 13, -1, -1)
+					$Add_4_2 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_4_3)
+				if($IO_4_3=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,14,-1,-1)
+				$Add_4_3 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 14, -1, -1)
+					$Add_4_3 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+			on ui_control($IO_4_4)
+				if($IO_4_4=0)
+				set_engine_par($ENGINE_PAR_VOLUME, 0,15,-1,-1)
+				$Add_4_4 := 0
+				else
+					set_engine_par($ENGINE_PAR_VOLUME, 630000, 15, -1, -1)
+					$Add_4_4 :=630000
+					$count :=48
+						    while ($count < 109)
+							set_key_color($count,$KEY_COLOR_GREEN)
+						        inc($count)
+						    end while
+						    wait(1000000)
+						    $count :=48
+
+						    while ($count < 109)
+						    set_key_color($count,$KEY_COLOR_TURQUOISE)
+						    inc($count)
+						    end while
+				end if
+			end on
+
+	{Reset button}
+		on ui_control($reset)
+			if($reset=1)
+				$IO_1_1 :=0
+				$IO_1_2 :=0
+				$IO_1_3 :=0
+				$IO_2_1 :=0
+				$IO_2_2 :=0
+				$IO_2_3 :=0
+				$IO_2_4 :=0
+				$IO_3_1 :=0
+				$IO_3_2 :=0
+				$IO_3_3 :=0
+				$IO_3_4 :=0
+				$IO_3_5 :=0
+				$IO_4_1 :=0
+				$IO_4_2 :=0
+				$IO_4_3 :=0
+				$IO_4_4 :=0
+
+				$Add_1_1 :=0
+				$Add_1_2 :=0
+				$Add_1_3 :=0
+				$Add_2_1 :=0
+				$Add_2_2 :=0
+				$Add_2_3 :=0
+				$Add_2_4 :=0
+				$Add_3_1 :=0
+				$Add_3_2 :=0
+				$Add_3_3 :=0
+				$Add_3_4 :=0
+				$Add_3_5 :=0
+				$Add_4_1 :=0
+				$Add_4_2 :=0
+				$Add_4_3 :=0
+				$Add_4_4 :=0
+
+				$count :=0
+				while($count < $NUM_GROUPS)
+					set_engine_par($ENGINE_PAR_VOLUME, 0,$count ,-1,-1)
+					inc($count)
+				end while
+
+				$reset :=0
+			end if
+		end on
+
+{ADSR ui_controls}
+
+	on ui_control($ADSR_IO)
+		if ($ADSR_IO=1)
+				$count := 0
+	 		while($count < $NUM_GROUPS)
+			 set_engine_par($ENGINE_PAR_INTMOD_BYPASS,0,$count,find_mod($count,"env"),-1)
+			 inc($count)
+	 		end while
+		else 
+				$count := 0
+	 		while($count < $NUM_GROUPS)
+			 set_engine_par($ENGINE_PAR_INTMOD_BYPASS,1,$count,find_mod($count,"env"),-1)
+			 inc($count)
+	 		end while
+			
+		end if
+	end on
+	on ui_control ($ADSR_a)
+		$count := 0
+ 		while($count < $NUM_GROUPS)
+		 set_engine_par($ENGINE_PAR_ATTACK,$ADSR_a,$count,find_mod($count,"env"),-1)
+		 inc($count)
+ 		end while
+	end on
+
+	on ui_control ($ADSR_d)
+		$count := 0
+ 		while($count < $NUM_GROUPS)
+		 set_engine_par($ENGINE_PAR_DECAY,$ADSR_d,$count,find_mod($count,"env"),-1)
+		 inc($count)
+ 		end while
+	end on
+
+	on ui_control ($ADSR_s)
+		$count := 0
+ 		while($count < $NUM_GROUPS)
+		 set_engine_par($ENGINE_PAR_SUSTAIN,$ADSR_s,$count,find_mod($count,"env"),-1)
+		 inc($count)
+ 		end while
+	end on
+
+	on ui_control ($ADSR_r)
+		$count := 0
+ 		while($count < $NUM_GROUPS)
+		 set_engine_par($ENGINE_PAR_RELEASE,$ADSR_r,$count,find_mod($count,"env"),-1)
+		 inc($count)
+ 		end while
+	end on
+
+{Reverb ui_control}
+
+	{Dry and Wet of the Reverb}
+		on ui_control($rev_wet)
+			set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,$rev_wet,-1,0,$NI_INSERT_BUS)
+		end on
+			on ui_control($rev_dry)
+			set_engine_par($ENGINE_PAR_SEND_EFFECT_DRY_LEVEL,$rev_dry,-1,0,$NI_INSERT_BUS)
+		end on
+
+	{Selection of the reverb by Image Slider and midi CC automation}
+		on ui_control($rev_IMG)
+
+			if($rev_IMG=0)
+					$rev_1 := 1
+					$rev_2 := 0
+					$rev_3 := 0
+					$rev_4 := 0
+					$rev_5 := 0
+
+					load_ir_sample("cave.wav", 0,1)
+					set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+					set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+
+				else 
+					if($rev_IMG=1)
+								$rev_2 :=1
+								$rev_1 := 0
+								$rev_3 := 0
+								$rev_4 := 0
+								$rev_5 := 0
+								load_ir_sample("chapelle.wav", 0,1)
+								set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+					set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+						else
+							if($rev_IMG=2)
+											$rev_3 := 1
+											$rev_2 := 0
+											$rev_1 := 0
+											$rev_4 := 0
+											$rev_5 := 0
+											load_ir_sample("grignan.wav", 0,1)
+											set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+					set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+								else
+									if($rev_IMG=3)
+
+												$rev_4 := 1
+												$rev_2 := 0
+												$rev_3 := 0
+												$rev_1 := 0
+												$rev_5 := 0
+												load_ir_sample("campra.wav", 0,1)
+												set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+					set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+										else
+											if($rev_IMG=4)
+													$rev_5 := 1
+													$rev_2 := 0
+													$rev_3 := 0
+													$rev_4 := 0
+													$rev_1 := 0
+													load_ir_sample("401.wav", 0,1)
+													else 
+														$rev_5 := 0
+														$rev_2 := 0
+														$rev_3 := 0
+														$rev_4 := 0
+														$rev_1 := 0
+														set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,0,-1,0,$NI_INSERT_BUS)
+														set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+														set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+														$IMG := 0
+
+											end if
+									end if
+							end if
+					
+					end if
+					
+							
+
+			end if
+			
+
+		end on
+
+	{Selection of the IR sample (in the left foot corner)}
+		on ui_control($rev_1)
+				if($rev_1=1)
+					set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+					set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+					$IMG := 1
+					$rev_IMG := 0
+
+					$rev_2 := 0    {turn off the other reverb switches}
+					$rev_3 := 0
+					$rev_4 := 0
+					$rev_5 := 0
+					
+					load_ir_sample("cave.wav", 0,1)
+					set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,$rev_wet,-1,0,$NI_INSERT_BUS)
+				else 
+					set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,0,-1,0,$NI_INSERT_BUS)
+					set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+					set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+					$IMG := 0
+
+					
+				end if
+		end on
+		on ui_control($rev_2)
+			if($rev_2=1)
+				set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				$IMG := 1
+				$rev_IMG := 1
+
+				$rev_1 := 0
+				$rev_3 := 0
+				$rev_4 := 0
+				$rev_5 := 0
+
+				load_ir_sample("chapelle.wav", 0,1)
+				set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,$rev_wet,-1,0,$NI_INSERT_BUS)
+			else 
+				set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,0,-1,0,$NI_INSERT_BUS)
+				set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				$IMG := 0
+				
+			end if
+		end on
+		on ui_control($rev_3)
+			if($rev_3=1)
+				set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				$IMG := 1
+				$rev_IMG := 2
+
+				$rev_2 := 0
+				$rev_1 := 0
+				$rev_4 := 0
+				$rev_5 := 0
+
+				load_ir_sample("grignan.wav", 0, 1)
+				set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,$rev_wet,-1,0,$NI_INSERT_BUS)
+			else 
+				set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,0,-1,0,$NI_INSERT_BUS)
+				set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				$IMG := 0
+				
+			end if
+		end on
+		on ui_control($rev_4)
+			if($rev_4=1)	
+				set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				$IMG := 1
+				$rev_IMG := 3
+
+				$rev_1 := 0
+				$rev_2 := 0
+				$rev_3 := 0
+				$rev_5 := 0
+
+				load_ir_sample("campra.wav", 0, 1)
+				set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,$rev_wet,-1,0,$NI_INSERT_BUS)
+			else 
+				set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,0,-1,0,$NI_INSERT_BUS)
+				set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				$IMG := 0
+			
+			end if
+		end on
+		on ui_control($rev_5)
+			if($rev_5=1)
+				set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				$IMG := 1
+				$rev_IMG := 4
+
+				$rev_2 := 0
+				$rev_3 := 0
+				$rev_4 := 0
+				$rev_1 := 0
+
+				load_ir_sample("401.wav", 0, 1)
+				set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,$rev_wet,-1,0,$NI_INSERT_BUS)
+			else 
+				set_engine_par($ENGINE_PAR_SEND_EFFECT_OUTPUT_GAIN,0,-1,0,$NI_INSERT_BUS)
+				set_control_par(get_ui_id($rev_IMG), $CONTROL_PAR_HIDE, $HIDE_WHOLE_CONTROL)
+				set_control_par(get_ui_id($rev_IMG0), $CONTROL_PAR_HIDE, $HIDE_PART_NOTHING)
+				$IMG := 0
+			
+			end if
+	end on
+
+
+
+
