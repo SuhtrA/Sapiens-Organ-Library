@@ -10,7 +10,7 @@ No sound ressources are provided on Github.
 
 # Software
 
-Sapiens Organ has been developped for Kontakt 6 and is Kontakt 7 compatible
+Sapiens Organ has been developed for Kontakt 6 and is Kontakt 7 compatible
 
 Design has been made with the Native Instrument Creator Tools.
 ( https://www.native-instruments.com/ni-tech-manuals/creator-tools-manual/en/welcome-to-creator-tools )
